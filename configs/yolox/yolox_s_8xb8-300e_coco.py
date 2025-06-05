@@ -39,7 +39,7 @@ model = dict(
         act_cfg=dict(type='Swish')),
     bbox_head=dict(
         type='YOLOXHead',
-        num_classes=80,
+        num_classes=3,
         in_channels=128,
         feat_channels=128,
         stacked_convs=2,
@@ -70,7 +70,9 @@ model = dict(
     test_cfg=dict(score_thr=0.01, nms=dict(type='nms', iou_threshold=0.65)))
 
 # dataset settings
-data_root = 'data/coco/'
+data_root = '/home/dhw/yyc_workspace/ConvNeXt-MoE/dataset_coco/'
+
+
 dataset_type = 'CocoDataset'
 
 # Example to use different file client
@@ -124,8 +126,8 @@ train_dataset = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file='annotations/instances_train2017.json',
-        data_prefix=dict(img='train2017/'),
+        ann_file='anno_train.json',
+        data_prefix=dict(img='train/images/'),
         pipeline=[
             dict(type='LoadImageFromFile', backend_args=backend_args),
             dict(type='LoadAnnotations', with_bbox=True)
@@ -163,8 +165,8 @@ val_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file='annotations/instances_val2017.json',
-        data_prefix=dict(img='val2017/'),
+        ann_file='anno_val.json',
+        data_prefix=dict(img='val/images/'),
         test_mode=True,
         pipeline=test_pipeline,
         backend_args=backend_args))
@@ -172,13 +174,13 @@ test_dataloader = val_dataloader
 
 val_evaluator = dict(
     type='CocoMetric',
-    ann_file=data_root + 'annotations/instances_val2017.json',
+    ann_file=data_root + 'anno_val.json',
     metric='bbox',
     backend_args=backend_args)
 test_evaluator = val_evaluator
 
 # training settings
-max_epochs = 300
+max_epochs = 100
 num_last_epochs = 15
 interval = 10
 

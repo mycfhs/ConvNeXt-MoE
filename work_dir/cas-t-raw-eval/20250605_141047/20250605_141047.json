@@ -1,0 +1,1 @@
+{"coco/Precision@0.5": 0.964, "coco/Precision@0.75": 0.923, "coco/ship_precision": 0.823, "coco/helicopter_precision": 0.852, "coco/UAV_precision": 0.745, "coco/bbox_mAP": 0.807, "coco/bbox_mAP_50": 0.982, "coco/bbox_mAP_75": 0.931, "coco/bbox_mAP_s": 0.427, "coco/bbox_mAP_m": 0.723, "coco/bbox_mAP_l": 0.852, "data_time": 0.016135654133609217, "time": 0.19123082962470855}

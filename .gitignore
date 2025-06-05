@@ -1,5 +1,7 @@
 # yyc add
-
+work_dirs
+dataset_coco
+*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

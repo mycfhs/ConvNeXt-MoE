@@ -383,6 +383,103 @@ class CocoMetric(BaseMetric):
             # add converted result to the results list
             self.results.append((gt, result))
 
+
+    def compute_precision_at_threshold(self, coco_eval, iou_threshold=0.5, conf_threshold=0.5):
+        """计算在特定IoU和置信度阈值下的precision"""
+        # 获取所有预测结果
+        dt = coco_eval.cocoDt
+        gt = coco_eval.cocoGt
+        
+        total_tp = 0
+        total_fp = 0
+        
+        # 在特定阈值下计算TP, FP
+        for img_id in self.img_ids:
+            dt_anns = dt.loadAnns(dt.getAnnIds(imgIds=[img_id]))
+            gt_anns = gt.loadAnns(gt.getAnnIds(imgIds=[img_id]))
+            
+            # 过滤置信度低的预测
+            dt_anns = [ann for ann in dt_anns if ann.get('score', 1.0) >= conf_threshold]
+            
+            # 过滤掉iscrowd的GT
+            gt_anns = [ann for ann in gt_anns if not ann.get('iscrowd', False)]
+            
+            # 记录已匹配的GT，防止重复匹配
+            matched_gt = set()
+            
+            # 按置信度排序预测框
+            dt_anns = sorted(dt_anns, key=lambda x: x.get('score', 1.0), reverse=True)
+            
+            for dt_ann in dt_anns:
+                is_tp = False
+                best_iou = 0
+                best_gt_idx = -1
+                
+                # 寻找最佳匹配的GT
+                for gt_idx, gt_ann in enumerate(gt_anns):
+                    # 检查类别是否匹配
+                    if dt_ann['category_id'] != gt_ann['category_id']:
+                        continue
+                    
+                    # 如果GT已被匹配，跳过
+                    if gt_idx in matched_gt:
+                        continue
+                    
+                    # 计算IoU
+                    iou = self.compute_bbox_iou(dt_ann['bbox'], gt_ann['bbox'])
+                    
+                    # 找到最佳匹配
+                    if iou > best_iou:
+                        best_iou = iou
+                        best_gt_idx = gt_idx
+                
+                # 判断是否为TP
+                if best_iou >= iou_threshold and best_gt_idx != -1:
+                    is_tp = True
+                    matched_gt.add(best_gt_idx)
+                    total_tp += 1
+                else:
+                    total_fp += 1
+        
+        # 计算最终precision
+        precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0
+        
+        return precision
+
+    def compute_bbox_iou(self, bbox1, bbox2):
+        """计算两个bbox的IoU (COCO格式: [x, y, w, h])"""
+        # 转换为xyxy格式
+        x1, y1, w1, h1 = bbox1
+        x2, y2, w2, h2 = bbox2
+        
+        box1 = [x1, y1, x1 + w1, y1 + h1]
+        box2 = [x2, y2, x2 + w2, y2 + h2]
+        
+        # 计算交集区域
+        x_left = max(box1[0], box2[0])
+        y_top = max(box1[1], box2[1])
+        x_right = min(box1[2], box2[2])
+        y_bottom = min(box1[3], box2[3])
+        
+        # 检查是否有交集
+        if x_right <= x_left or y_bottom <= y_top:
+            return 0.0
+        
+        # 计算交集面积
+        intersection = (x_right - x_left) * (y_bottom - y_top)
+        
+        # 计算各自面积
+        area1 = w1 * h1
+        area2 = w2 * h2
+        
+        # 计算并集面积
+        union = area1 + area2 - intersection
+        
+        # 计算IoU
+        iou = intersection / union if union > 0 else 0
+        
+        return iou
+
     def compute_metrics(self, results: list) -> Dict[str, float]:
         """Compute the metrics from processed results.
 
@@ -517,6 +614,17 @@ class CocoMetric(BaseMetric):
                 coco_eval.evaluate()
                 coco_eval.accumulate()
                 coco_eval.summarize()
+                
+                # 计算真正的precision指标
+                precision_50 = self.compute_precision_at_threshold(coco_eval, 0.5, 0.5)
+                precision_75 = self.compute_precision_at_threshold(coco_eval, 0.75, 0.5)
+                
+                eval_results['Precision@0.5'] = round(precision_50, 3)
+                eval_results['Precision@0.75'] = round(precision_75, 3)
+                
+                logger.info(f'True Precision@0.5: {precision_50:.3f}')
+                logger.info(f'True Precision@0.75: {precision_75:.3f}')
+    
                 if self.classwise:  # Compute per-category AP
                     # Compute per-category AP
                     # from https://github.com/facebookresearch/detectron2/
